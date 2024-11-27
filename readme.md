@@ -27,7 +27,7 @@ Upload any CSV file and:
   <p><em>Main application interface showcasing CSV data analysis and visualization</em></p>
 </div>
 
-[Demo](http://rustviz.github.io])
+[Demo](http://rustviz.github.io)
 
 ## Getting Started
 
