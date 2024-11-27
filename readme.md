@@ -46,11 +46,17 @@ cd rustviz
 ```
 
 2. Build the WebAssembly module:
+
+# Install wasm-pack if you haven't already
+```bash
+cargo install wasm-pack
+```
+
 ```bash
 wasm-pack build --target web
 ```
 
-3. Serve the project:
+1. Serve the project:
 ```bash
 # Using Python
 python -m http.server 8000
