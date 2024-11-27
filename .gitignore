@@ -17,6 +17,8 @@ Cargo.lock
 *.pdb
 
 index.html
+src/parse_csv.rs
+src/tmp.md
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
