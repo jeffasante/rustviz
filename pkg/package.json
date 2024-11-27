@@ -1,0 +1,15 @@
+{
+  "name": "rust-wasm-csv",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "rust_wasm_csv_bg.wasm",
+    "rust_wasm_csv.js",
+    "rust_wasm_csv.d.ts"
+  ],
+  "main": "rust_wasm_csv.js",
+  "types": "rust_wasm_csv.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
