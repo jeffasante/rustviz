@@ -151,4 +151,4 @@ This project is licensed under the Apache 2.0 License - see the LICENSE file for
 
 ## Support
 
-For support, please open an issue in the GitHub repository or contact [jeffaoduro@gmail.com]
+For support, please open an issue in the GitHub repository or contact [Email](jeffaoduro@gmail.com)
