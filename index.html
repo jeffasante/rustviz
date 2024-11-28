@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .file-input {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .column-selectors {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stats-panel, .visualization-panel {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error {
+            color: red;
+            padding: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>RustViz</h1>
+            <p>Upload a CSV file to analyze the data</p>
+        </div>
+
+        <div class="input-section">
+            <input type="file" id="fileInput" accept=".csv" class="file-input">
+            <div class="column-selectors">
+                <select id="xColumn">
+                    <option value="">Select X Column</option>
+                </select>
+                <select id="yColumn">
+                    <option value="">Select Y Column</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            Analyzing data...
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results">
+            <div class="stats-panel">
+                <h2>Statistics</h2>
+                <div id="statistics"></div>
+            </div>
+            <div class="visualization-panel">
+                <h2>Visualization</h2>
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { 
+            parse_csv, 
+            get_column_values, 
+            calculate_stats, 
+            linear_regression,
+            analyze_data 
+        } from '../pkg/rust_wasm_csv.js';
+
+        let chart;
+
+        async function initialize() {
+            await init();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            const fileInput = document.getElementById('fileInput');
+            const xSelect = document.getElementById('xColumn');
+            const ySelect = document.getElementById('yColumn');
+
+            fileInput.addEventListener('change', handleFileUpload);
+            xSelect.addEventListener('change', handleColumnSelection);
+            ySelect.addEventListener('change', handleColumnSelection);
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                showLoading(true);
+                const text = await file.text();
+                const data = parse_csv(text);
+                updateColumnSelectors(data[0]);
+                showLoading(false);
+            } catch (error) {
+                showError(error.message);
+                showLoading(false);
+            }
+        }
+
+        async function handleColumnSelection() {
+            const xColumn = document.getElementById('xColumn').value;
+            const yColumn = document.getElementById('yColumn').value;
+
+            if (!xColumn || !yColumn) return;
+
+            try {
+                showLoading(true);
+                const file = document.getElementById('fileInput').files[0];
+                const text = await file.text();
+                const results = analyze_data(xColumn, yColumn, text);
+                updateVisualization(results);
+                updateStatistics(results);
+                showLoading(false);
+            } catch (error) {
+                showError(error.message);
+                showLoading(false);
+            }
+        }
+
+        function updateColumnSelectors(data) {
+            const columns = Object.keys(data);
+            const xSelect = document.getElementById('xColumn');
+            const ySelect = document.getElementById('yColumn');
+
+            xSelect.innerHTML = '<option value="">Select X Column</option>';
+            ySelect.innerHTML = '<option value="">Select Y Column</option>';
+
+            columns.forEach(column => {
+                xSelect.add(new Option(column, column));
+                ySelect.add(new Option(column, column));
+            });
+        }
+
+        function updateVisualization(results) {
+            const ctx = document.getElementById('chart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            const { regression } = results;
+            const scatterData = regression.points;
+            const minX = Math.min(...scatterData.map(p => p[0]));
+            const maxX = Math.max(...scatterData.map(p => p[0]));
+
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Data Points',
+                        data: scatterData.map(p => ({x: p[0], y: p[1]})),
+                        backgroundColor: 'blue'
+                    }, {
+                        label: 'Regression Line',
+                        type: 'line',
+                        data: [
+                            {x: minX, y: regression.slope * minX + regression.intercept},
+                            {x: maxX, y: regression.slope * maxX + regression.intercept}
+                        ],
+                        borderColor: 'red',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStatistics(results) {
+            const { x_stats, y_stats, regression } = results;
+            const statsDiv = document.getElementById('statistics');
+            
+            statsDiv.innerHTML = `
+                <h3>X Column Statistics</h3>
+                <p>Mean: ${x_stats.mean.toFixed(2)}</p>
+                <p>Median: ${x_stats.median.toFixed(2)}</p>
+                <p>Standard Deviation: ${x_stats.std_dev.toFixed(2)}</p>
+                <p>Min: ${x_stats.min.toFixed(2)}</p>
+                <p>Max: ${x_stats.max.toFixed(2)}</p>
+
+                <h3>Y Column Statistics</h3>
+                <p>Mean: ${y_stats.mean.toFixed(2)}</p>
+                <p>Median: ${y_stats.median.toFixed(2)}</p>
+                <p>Standard Deviation: ${y_stats.std_dev.toFixed(2)}</p>
+                <p>Min: ${y_stats.min.toFixed(2)}</p>
+                <p>Max: ${y_stats.max.toFixed(2)}</p>
+
+                <h3>Regression Analysis</h3>
+                <p>Slope: ${regression.slope.toFixed(4)}</p>
+                <p>Intercept: ${regression.intercept.toFixed(4)}</p>
+                <p>R²: ${regression.r_squared.toFixed(4)}</p>
+            `;
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
